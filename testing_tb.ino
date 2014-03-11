@@ -37,35 +37,41 @@ ChangePinStateCommand led_on(&talkback, LED_ON_COMMAND, Board::LED, 1);
 const char LED_OFF_COMMAND[] __PROGMEM = "TURN_OFF";
 ChangePinStateCommand led_off(&talkback, LED_OFF_COMMAND, Board::LED, 0);
 
-class ExecuteNextTalkBackCommand : public Alarm 
+class ExecuteNextTalkBackCommandTask : public Alarm 
 {
   public:
-    ExecuteNextTalkBackCommand (uint16_t period) : Alarm(period) {}
+    ExecuteNextTalkBackCommandTask (ThingSpeak::TalkBack* talkback, uint16_t period) : 
+      Alarm(period), 
+      m_talkback(talkback) {}
     virtual void run();
+
+  private:
+    ThingSpeak::TalkBack* m_talkback;
 };
  
 void 
-ExecuteNextTalkBackCommand::run()
+ExecuteNextTalkBackCommandTask::run()
 {
+  TRACE(m_talkback->execute_next_command()); 
   trace << time() << PSTR(" : Execute next TalkBack command") << endl;
 }
 
-class PostToThingSpeak : public Alarm 
+class PostToThingSpeakTask : public Alarm 
 {
   public:
-    PostToThingSpeak(uint16_t period) : Alarm(period) {}
+    PostToThingSpeakTask(uint16_t period) : Alarm(period) {}
     virtual void run();
 };
  
 void 
-PostToThingSpeak::run()
+PostToThingSpeakTask::run()
 {
   trace << time() << PSTR(" : Post to ThinkgSpeak") << endl;
 }
 
 Alarm::Scheduler scheduler;
-ExecuteNextTalkBackCommand every_fifteen_seconds(15);
-PostToThingSpeak every_minute(60);
+ExecuteNextTalkBackCommandTask every_fifteen_seconds(&talkback, 15);
+PostToThingSpeakTask every_minute(60);
 
 void setup()
 {
@@ -89,6 +95,4 @@ void loop()
   Event event;
   Event::queue.await(&event);
   event.dispatch();
-  
-  TRACE(talkback.execute_next_command()); 
 }
