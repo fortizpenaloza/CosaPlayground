@@ -21,15 +21,18 @@
  * This file is part of the Arduino Che Cosa project.
  */
 
-#include "Cosa/Watchdog.hh"
+#include "Cosa/Alarm.hh"
 #include "Cosa/Event.hh"
-#include "Cosa/Periodic.hh"
+#include "Cosa/RTC.hh"
+#include "Cosa/Watchdog.hh"
+
+#include "Cosa/Memory.h"
+
 #include "Cosa/Socket/Driver/W5100.hh"
+#include "Cosa/IoT/ThingSpeak.hh"
 
-#include "ChangePinState.h"
+#include "ChangePinStateCommand.h"
 
-#define TURN_ON 1
-#define TURN_OFF 0
 
 #ifndef NDEBUG
 #include "Cosa/Trace.hh"
@@ -50,32 +53,42 @@ ThingSpeak::Client client;
 ThingSpeak::TalkBack talkback(&client, KEY, TALKBACK_ID);
 
 // Create commands
-const char LED_ON[] __PROGMEM = "LED_ON";
-ChangePinState led_on(&talkback, LED_ON, Board::LED, TURN_ON);
+const char LED_ON_COMMAND[] __PROGMEM = "TURN_LED_OFF";
+ChangePinStateCommand led_on(&talkback, LED_ON_COMMAND, Board::LED, TURN_ON);
 
-const char LED_OFF[] __PROGMEM = "LED_OFF";
-ChangePinState led_off(&talkback, LED_OFF, Board::LED, TURN_OFF);
+const char LED_OFF_COMMAND[] __PROGMEM = "TURN_LED_ON";
+ChangePinStateCommand led_off(&talkback, LED_OFF_COMMAND, Board::LED, TURN_OFF);
 
-class ExecuteNextTalkBackCommand : public Periodic {
-public:
-  ExecuteNextTalkBackCommand (uint16_t ms) : Periodic(ms) {}
-  virtual void run() { 
-    talkback.execute_next_command(); 
-    trace << Watchdog::millis() << PSTR(": ExecuteNextTalkBackCommand") << endl; 
-  }
+class ExecuteNextTalkBackCommand : public Alarm 
+{
+  public:
+    ExecuteNextTalkBackCommand (uint16_t period) : Alarm(period) {}
+    virtual void run();
 };
+ 
+void 
+ExecuteNextTalkBackCommand::run()
+{
+  TRACE(talkback.execute_next_command()); 
+  trace << time() << PSTR(" : Execute next TalkBack command") << endl;
+}
 
-class ExecuteNextTalkBackCommand2 : public Periodic {
-public:
-  ExecuteNextTalkBackCommand2 (uint16_t ms) : Periodic(ms) {}
-  virtual void run() { 
-    talkback.execute_next_command(); 
-    trace << Watchdog::millis() << PSTR(": ExecuteNextTalkBackCommand2") << endl; 
-  }
+class PostToThingSpeak : public Alarm 
+{
+  public:
+    PostToThingSpeak(uint16_t period) : Alarm(period) {}
+    virtual void run();
 };
+ 
+void 
+PostToThingSpeak::run()
+{
+  trace << time() << PSTR(" : Post to ThinkgSpeak") << endl;
+}
 
-ExecuteNextTalkBackCommand nextCommand(32);
-ExecuteNextTalkBackCommand2 nextCommand2(64);
+Alarm::Scheduler scheduler;
+ExecuteNextTalkBackCommand every_fifteen_seconds(15);
+PostToThingSpeak every_minute(60);
 
 void setup()
 {
@@ -84,10 +97,16 @@ void setup()
   trace.begin(&uart, PSTR("IoTponics: started"));
 #endif
 
+  TRACE(free_memory());
+
   Watchdog::begin(16, SLEEP_MODE_IDLE, Watchdog::push_timeout_events);
+  RTC::begin();
 
   TRACE(ethernet.begin_P(HOSTNAME));
   TRACE(client.begin(ethernet.socket(Socket::TCP)));
+
+  every_fifteen_seconds.enable();
+  every_minute.enable();
 }
 
 void loop()
