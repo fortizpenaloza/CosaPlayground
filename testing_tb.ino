@@ -74,8 +74,8 @@ public:
   }
 };
 
-ExecuteNextTalkBackCommand nextCommand(16);
-ExecuteNextTalkBackCommand2 nextCommand2(32);
+ExecuteNextTalkBackCommand nextCommand(32);
+ExecuteNextTalkBackCommand2 nextCommand2(64);
 
 void setup()
 {
@@ -83,8 +83,6 @@ void setup()
   uart.begin(9600);
   trace.begin(&uart, PSTR("IoTponics: started"));
 #endif
-
-// Watchdog::begin();
 
   Watchdog::begin(16, SLEEP_MODE_IDLE, Watchdog::push_timeout_events);
 
@@ -94,9 +92,6 @@ void setup()
 
 void loop()
 {
-
-//  talkback.execute_next_command();
-//  SLEEP(30);
   Event event;
   Event::queue.await(&event);
   event.dispatch();
