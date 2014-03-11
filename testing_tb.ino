@@ -31,10 +31,10 @@ ThingSpeak::Client client;
 ThingSpeak::TalkBack talkback(&client, KEY, TALKBACK_ID);
 
 // Create commands
-const char LED_ON_COMMAND[] __PROGMEM = "TURN_ON";
+const char LED_ON_COMMAND[] __PROGMEM = "LED_ON";
 ChangePinStateCommand led_on(&talkback, LED_ON_COMMAND, Board::LED, 1);
 
-const char LED_OFF_COMMAND[] __PROGMEM = "TURN_OFF";
+const char LED_OFF_COMMAND[] __PROGMEM = "LED_OFF";
 ChangePinStateCommand led_off(&talkback, LED_OFF_COMMAND, Board::LED, 0);
 
 class ExecuteNextTalkBackCommandTask : public Alarm 
